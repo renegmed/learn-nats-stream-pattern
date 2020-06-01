@@ -1,0 +1,31 @@
+version: '3.7'
+
+services:
+  nats1:
+    container_name: nats_1
+    image: nats-streaming
+    volumes:
+    - ./cluster-1/config-1.conf:/config.conf
+    command: -m 8222 --config /config.conf -SDV
+    # 172.21.0.5:4222 based on cluster-info curl http://127.0.0.1:8222/varz
+    expose:
+      - 8222
+    ports:
+      - 8222:8222
+  nats2:
+    container_name: nats_2
+    image: nats-streaming
+    volumes:
+    - ./cluster-1/config-2.conf:/config.conf
+    command: -m 8222 --config /config.conf -SDV
+   
+  nats3:
+    container_name: nats_3
+    image: nats-streaming
+    volumes:
+    - ./cluster-1/config-3.conf:/config.conf
+    command: -m 8222 --config /config.conf -SDV  
+
+networks:
+  default:
+    driver: bridge
