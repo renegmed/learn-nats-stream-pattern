@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gorilla/mux"
 	stan "github.com/nats-io/stan.go"
@@ -25,6 +26,8 @@ func processMessage(m *stan.Msg) {
 	}
 
 	log.Printf("Message has been processed by sub2:\n\t %s\n", msg)
+
+	time.Sleep(500 * time.Millisecond)
 }
 
 func main() {

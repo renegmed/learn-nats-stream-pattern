@@ -69,10 +69,19 @@ func (s *server) publish(msg Message) error {
 		return errors.Wrap(err, "failed to marshal message")
 	}
 
-	if err := s.natsConn.Publish(msg.Topic, bs); err != nil {
+	nuid, err := s.natsConn.PublishAsync(msg.Topic, bs, ackHandler)
+	if err != nil {
 		return errors.Wrap(err, "failed to publish message")
 	}
 
-	log.Println("Message has been published on topic:", msg.Topic)
+	log.Printf("Message has been published on topic: %v, with acknowledge %v\n", msg.Topic, nuid)
 	return nil
+}
+
+func ackHandler(ackedNuid string, err error) {
+	if err != nil {
+		log.Printf("Warning: error publishing msg id %s: %v\n", ackedNuid, err.Error())
+	} else {
+		log.Printf("Received ack for msg id %s\n", ackedNuid)
+	}
 }

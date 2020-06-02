@@ -10,7 +10,8 @@ cluster-info:
 
 post:
 	curl -XPOST http://localhost:9000/publish -d '{"topic":"topic.test","message":"this is a test."}'
-.PHONY: post
+	curl -XPOST http://localhost:9000/publish -d '{"topic":"topic.test","message":"this is another test."}'
+.PHONY: post 
 
 tail-pub:
 	docker logs pub -f 
