@@ -26,6 +26,56 @@ services:
     - ./cluster-1/config-3.conf:/config.conf
     command: -m 8222 --config /config.conf -SDV  
 
+
+  pub:
+    container_name: pub
+    build: 
+      context: ./pub
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    depends_on:
+     - nats1
+    environment:      
+      NATS_ADDR: nats://nats1:4222
+      NATS_CLUSTER_ID: cluster-one
+      NATS_CLIENT_ID: pub-1
+      SERVER_PORT: 9000
+
+  sub1:
+    container_name: sub_1
+    build: 
+      context: ./sub1    
+    restart: unless-stopped 
+    ports:
+      - "7000:7000"
+    depends_on:
+     - nats1
+    environment:      
+      NATS_ADDR: nats://nats1:4222
+      NATS_CLUSTER_ID: cluster-one
+      NATS_CLIENT_ID: sub-1
+      QUEUE_TOPIC: topic.test
+      QUEUE_GROUP: sales 
+      SERVER_PORT: 7000
+
+  sub2:
+    container_name: sub_2
+    build: 
+      context: ./sub2    
+    restart: unless-stopped 
+    ports:
+      - "7002:7000"
+    depends_on:
+     - nats1
+    environment:      
+      NATS_ADDR: nats://nats1:4222
+      NATS_CLUSTER_ID: cluster-one
+      NATS_CLIENT_ID: sub-2
+      QUEUE_TOPIC: topic.test
+      QUEUE_GROUP: sales 
+      SERVER_PORT: 7000  
+
 networks:
   default:
     driver: bridge
