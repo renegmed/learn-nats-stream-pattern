@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	stan "github.com/nats-io/stan.go"
@@ -16,17 +18,59 @@ type Message struct {
 	Message   string `json:"message"`
 }
 
-func processMessage(m *stan.Msg) {
+type processed struct {
+	messages map[string]Message
+}
+
+func newProcessed() processed {
+	return processed{map[string]Message{}}
+}
+
+func (p *processed) ifexists(id string) bool {
+	_, ok := p.messages[id]
+	return ok
+}
+
+func (p *processed) save(m Message) {
+	if !p.ifexists(m.MessageID) {
+		p.messages[m.MessageID] = m
+	} else {
+		log.Printf("+++++ Message %s have been received before.\n", m.MessageID)
+	}
+}
+
+func (p *processed) processMessage(m *stan.Msg) bool {
+	msg, err := getMessage(m)
+	if err != nil {
+		log.Println(err)
+		return false
+	}
+
+	if p.ifexists(msg.MessageID) {
+		log.Println("++++ Message already received before", msg.MessageID)
+		return false
+	} else {
+		p.save(msg)
+	}
+
+	if strings.Contains(msg.Message, "fail") {
+		log.Printf("+++++ Message failed to process by sub1:\n\t %v\n", msg)
+		return false
+	}
+
+	log.Printf("+++++ Message has been processed by sub1:\n\t %v\n", msg)
+	return true
+}
+
+func getMessage(m *stan.Msg) (Message, error) {
 	data := m.Data
 	msg := Message{}
 	if err := json.Unmarshal([]byte(data), &msg); err != nil {
 		log.Fatalf("Error, could not unmarshal message, %v", err)
-		return
+		return msg, err
 	}
-
-	log.Printf("Message has been processed by sub1:\n\t %v\n", msg)
+	return msg, nil
 }
-
 func main() {
 
 	natsURL := os.Getenv("NATS_ADDR")
@@ -44,11 +88,24 @@ func main() {
 
 	log.Printf("Connected to %s clusterID: [%s] clientID: [%s]\n", natsURL, natsClusterID, natsClientID)
 
-	mcb := func(msg *stan.Msg) {
-		processMessage(msg)
-	}
+	aw, _ := time.ParseDuration("1s")
+	processedMsg := newProcessed()
 
-	_, err = natsConn.Subscribe(qtopic, mcb)
+	_, err = natsConn.Subscribe(qtopic, func(m *stan.Msg) {
+
+		log.Printf("Received Message seq %d. Ready to process.", m.Sequence)
+		success := processedMsg.processMessage(m)
+		if success {
+			log.Print("+++++ Sending acknowledgement.")
+			m.Ack() // ack message after performing I/O intensive operation
+		} else {
+			if m.RedeliveryCount >= 2 {
+				log.Printf("+++++ Failed to process after %d attempts. We give up. Ask NATS to stop redelivery.", m.RedeliveryCount+1)
+				m.Ack()
+			}
+		}
+	}, stan.SetManualAckMode(), stan.AckWait(aw))
+
 	if err != nil {
 		natsConn.Close()
 		log.Fatalf("Error on queue subscribe; %v", err)

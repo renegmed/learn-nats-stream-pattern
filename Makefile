@@ -10,7 +10,8 @@ cluster-info:
 
 post:
 	curl -XPOST http://localhost:9000/publish -d '{"topic":"topic.test","message":"this is a test."}'
-	curl -XPOST http://localhost:9000/publish -d '{"topic":"topic.test","message":"this is another test."}'
+	curl -XPOST http://localhost:9000/publish -d '{"topic":"topic.test","message":"failed test."}'
+	curl -XPOST http://localhost:9000/publish -d '{"topic":"topic.test","message":"successful test."}'
 .PHONY: post 
 
 tail-pub:
